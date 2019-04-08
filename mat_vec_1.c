@@ -14,32 +14,53 @@ int P ;
 float** a ;
 float* b ;
 float* x ;
+pthread_mutex_t lock;
 
-void *thread_execute(int k) {
-	int i;
-	int range = N / P;
+struct arg_to_thread { int num; float sum; };
 
-	if (k == P - 1 && N % P != 0) range = N % P;
+//static pthread_mutex_t *mutex_lock;
+
+void* thread_execute(void* s) {
+	int i, j, start, range;
+	float sum;
+	struct arg_to_thread *local_arg;
+			
+	local_arg = s;
+	range = N / P;
+	start = (*local_arg).num * range;
+	
+	if ((*local_arg).num == P - 1 && N % P != 0) { range = N % P; }
 
 /* multiply partial matrix */
-	for (i = k * N/P; i < (k+1) * N/P; i++} {
-	
+	for (i = start; i < start+range; i++) {
+		sum = 0.0;
+		for (j = 0; j < N; j++) {
+			sum = sum + a[j][i] * b[j];
+		}
+		pthread_mutex_lock(&lock);
+		x[i] = sum;
+		pthread_mutex_unlock(&lock);
 	}
+
+	pthread_exit(0);
 }
 
-main (int argc, char *argv[] )    {
+int main (int argc, char *argv[] )    {
 /* the array size should be supplied as a command line argument */
   if(argc != 3) {printf("wrong number of arguments") ; exit(2) ;}
   N = atoi(argv[1]) ;
-	P = atoi(argv[2]);
+  P = atoi(argv[2]);
   printf("Array size = %d, # of Threads: %d\n", N, P);
   int mid = (N+1)/2;
-  int i, j;
+  int i, j, w;
   double time_start, time_end;
   struct timeval tv;
   struct timezone tz;
-	pthread_t t_id[P];
-	
+  pthread_t t_id[P];
+  struct arg_to_thread my_arg[P];
+
+  if (pthread_mutex_init(&lock, NULL) != 0) printf("Mutex init has failed\n");	
+
 /* allocate arrays dynamically */
   a = malloc(sizeof(float*)*N);
   for (i = 0; i < N; i++) {
@@ -48,7 +69,7 @@ main (int argc, char *argv[] )    {
   b = malloc(sizeof(float)*N);
   x = malloc(sizeof(float)*N);
 
-  /* Inititialize matrix A and vector B. */
+/* Inititialize matrix A and vector B. */
   for (i=0; i<N; i++) {
     for (j=0; j<N; j++) {
       if (j == i)                    { a[i][j] = 2.0; }
@@ -58,33 +79,27 @@ main (int argc, char *argv[] )    {
     b[i] = mid - abs(i-mid+1);
   }
 
-	rows_per_thread = (N - (N % P)) / P;
-	
-	if(N % P != 0) rows_last_thread = N % P;
-	else rows_last_thread = rows_per_thread;
+/* compute start time */
+	gettimeofday (&tv ,   &tz);
+  time_start = (double)tv.tv_sec +
+            (double)tv.tv_usec / 1000000.0;
 
+/* initialize product array */
+  for (i=0; i<N; i++) x[i] = 0.0;
+  
 /* create T threads to multiply partial arrays */
 	for(i = 0; i < P; i++) {
-		pthread_create(&(t_id[i]), NULL, &thread_execute, );
+		my_arg[i].num = i;
+		pthread_create(&(t_id[i]), NULL, &thread_execute, (void*) &my_arg[i]);
 	}
 
 /* exit thread */
 	for(i = 0; i < P; i++) {
 		pthread_join(t_id[i], NULL);
 	}
-
-
-  gettimeofday (&tv ,   &tz);
-  time_start = (double)tv.tv_sec +
-            (double)tv.tv_usec / 1000000.0;
-
-    for (i=0; i<N; i++) x[i] = 0.0;
-    for (i=0; i<N; i++) {
-      for (j=0; j<N; j++) {
-         x[i] += a[i][j] * b[j];
-      }
-    }
-
+	pthread_mutex_destroy(&lock);
+ 
+/* compute end time */
   gettimeofday (&tv ,  &tz);
   time_end = (double)tv.tv_sec +
           (double)tv.tv_usec / 1000000.0;
@@ -93,5 +108,4 @@ main (int argc, char *argv[] )    {
   for (i=0; i<N; i+=N/10) { printf(" %10.6f",x[i]); }
   printf("\n");
   printf ("time = %lf\n", time_end - time_start);
-
 }
