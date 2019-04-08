@@ -10,44 +10,36 @@
 #include <pthread.h>
 
 int N ;
+int P ;
 float** a ;
 float* b ;
 float* x ;
-pthread_mutex_t start_mutex, complete_mutex;
-pthread_cond_t start_condition, complete_condition;
-int work = 0;
-int round = 0;
-int main_waiting = 0;
-int completed source = 0;
 
+void *thread_execute(int k) {
+	int i;
+	int range = N / P;
 
-void *thread_execute(void *vargp) {
-	int *myid = (int *)vargp; 
+	if (k == P - 1 && N % P != 0) range = N % P;
+
+/* multiply partial matrix */
+	for (i = k * N/P; i < (k+1) * N/P; i++} {
+	
+	}
 }
 
 main (int argc, char *argv[] )    {
 /* the array size should be supplied as a command line argument */
   if(argc != 3) {printf("wrong number of arguments") ; exit(2) ;}
   N = atoi(argv[1]) ;
-	T = atoi(argv[2]);
-  printf("Array size = %d, # of Threads: %d\n", N, T);
+	P = atoi(argv[2]);
+  printf("Array size = %d, # of Threads: %d\n", N, P);
   int mid = (N+1)/2;
   int i, j;
   double time_start, time_end;
   struct timeval tv;
   struct timezone tz;
-	pthread_t tid;
+	pthread_t t_id[P];
 	
-/* create T threads to multiply partial arrays */
-	for(i = 0; i < T; i++) {
-		pthread_create(&tid, NULL, thread_executor, (void *)tid);
-	}
-
-/* exit thread */
-	pthread_exit(NULL);
-
-
-
 /* allocate arrays dynamically */
   a = malloc(sizeof(float*)*N);
   for (i = 0; i < N; i++) {
@@ -65,6 +57,22 @@ main (int argc, char *argv[] )    {
     }
     b[i] = mid - abs(i-mid+1);
   }
+
+	rows_per_thread = (N - (N % P)) / P;
+	
+	if(N % P != 0) rows_last_thread = N % P;
+	else rows_last_thread = rows_per_thread;
+
+/* create T threads to multiply partial arrays */
+	for(i = 0; i < P; i++) {
+		pthread_create(&(t_id[i]), NULL, &thread_execute, );
+	}
+
+/* exit thread */
+	for(i = 0; i < P; i++) {
+		pthread_join(t_id[i], NULL);
+	}
+
 
   gettimeofday (&tv ,   &tz);
   time_start = (double)tv.tv_sec +
